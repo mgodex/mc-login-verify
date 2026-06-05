@@ -10,6 +10,87 @@ NeoForge 1.21.1 自定义验证 Mod。玩家加入服务器时，验证通过才
 3. 启动服务器，程序自动生成toml后，修改 `config/mc_login_verify-server.toml` 中的 `authUrl`
 4. 执行 `/reload` 重载配置
 
+## 配置示例
+
+```toml
+[auth]
+authUrl = "http://127.0.0.1:8080/mc/4399/verify"
+```
+
+## 进阶接口
+
+> 总览：
+> 1、获取服务器cpu、内存、硬盘、在线玩家列表、玩家延迟等信息。
+> 2、 实时踢出玩家、拉黑玩家功能。
+> 3、远程终端命令功能（可在任意地方调用此接口来执行终端命令）。
+
+修改 `config/mc_login_verify-server.toml` 中的 `enableQueryControl` 值为 `true` 来启动这个功能。
+
+所有接口请求都需要配置请求头，否则将401拦截。请求头：
+
+```
+X-Token: 配置文件中的token
+X-Server-Id: 您的serverId
+```
+
+`serverId` 为 `authUrl` 中mc和verify中间的数字。
+例如 `http://127.0.0.1:8080/mc/4399/verify` 中，4399就是您的 `serverId`
+
+1. GET /api/status — 查询服务器状态
+响应：
+```
+{
+"success": true,
+"data": {
+"onlinePlayers": 5,
+"maxPlayers": 20,
+"playerList": ["player1", "player2"],
+"tps": 19.8,
+"memoryUsed": 2147483648,
+"memoryMax": 4294967296,
+"cpuUsage": 45.2,
+"serverId": "4399"
+}
+}
+```
+2. POST /api/kick — 踢出玩家
+请求体：
+```
+{
+"player": "玩家名",
+"reason": "违规行为"
+}
+```
+响应（成功）：
+```
+{
+"success": true,
+"message": "Kicked 玩家名"
+}
+```
+3. POST /api/command — 执行控制台命令
+```
+请求体：
+{
+"command": "say Hello"
+}
+```
+响应（成功）：
+```
+{
+"success": true,
+"message": "Command executed"
+}
+```
+认证失败（所有接口）
+```
+// HTTP 401
+{"success": false, "message": "Invalid token"}
+// 或
+{"success": false, "message": "Invalid serverId"}
+// 或
+{"success": false, "message": "Query control is disabled"}
+```
 ## 构建
 
 ```bash
@@ -17,13 +98,6 @@ NeoForge 1.21.1 自定义验证 Mod。玩家加入服务器时，验证通过才
 ```
 
 产物在 `build/libs/mc_login_verify-1.0.0.jar`。
-
-## 配置示例
-
-```toml
-[auth]
-authUrl = "http://你的API地址/verify"
-```
 
 ## 现成方案
 如果你不想部署，也可以直接使用我们现成的程序去管理。
