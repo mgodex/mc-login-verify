@@ -38,6 +38,7 @@ public class PlayerJoinHandler {
 
     @SubscribeEvent
     public void onPlayerLogin(PlayerEvent.PlayerLoggedInEvent event) {
+        if (!Config.ENABLE_VERIFY.get()) return;
         if (!(event.getEntity() instanceof ServerPlayer player)) {
             return;
         }

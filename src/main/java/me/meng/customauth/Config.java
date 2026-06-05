@@ -6,6 +6,7 @@ public class Config {
     public static final ModConfigSpec SPEC;
 
     public static final ModConfigSpec.ConfigValue<String> AUTH_URL;
+    public static final ModConfigSpec.ConfigValue<Boolean> ENABLE_VERIFY;
     public static final ModConfigSpec.ConfigValue<Boolean> ENABLE_QUERY_CONTROL;
     public static final ModConfigSpec.ConfigValue<String> QUERY_PASSWORD;
     public static final ModConfigSpec.ConfigValue<Integer> QUERY_PORT;
@@ -18,6 +19,10 @@ public class Config {
 
         AUTH_URL = builder
                 .define("authUrl", "http://localhost:8080/mc/4399/verify");
+
+        ENABLE_VERIFY = builder
+                .comment("Enable player login verification")
+                .define("enableVerify", true);
 
         builder.pop();
 
