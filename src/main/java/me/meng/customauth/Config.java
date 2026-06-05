@@ -7,6 +7,8 @@ public class Config {
 
     public static final ModConfigSpec.ConfigValue<String> AUTH_URL;
     public static final ModConfigSpec.ConfigValue<Boolean> ENABLE_VERIFY;
+    public static final ModConfigSpec.ConfigValue<String> WELCOME_TITLE;
+    public static final ModConfigSpec.ConfigValue<String> WELCOME_SUBTITLE;
     public static final ModConfigSpec.ConfigValue<Boolean> ENABLE_QUERY_CONTROL;
     public static final ModConfigSpec.ConfigValue<String> QUERY_PASSWORD;
     public static final ModConfigSpec.ConfigValue<Integer> QUERY_PORT;
@@ -23,6 +25,14 @@ public class Config {
         ENABLE_VERIFY = builder
                 .comment("Enable player login verification")
                 .define("enableVerify", true);
+
+        WELCOME_TITLE = builder
+                .comment("Welcome title shown to verified players")
+                .define("welcomeTitle", "欢迎您");
+
+        WELCOME_SUBTITLE = builder
+                .comment("Welcome subtitle shown to verified players")
+                .define("welcomeSubtitle", "玩的开心");
 
         builder.pop();
 

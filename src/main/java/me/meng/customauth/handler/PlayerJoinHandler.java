@@ -124,8 +124,8 @@ public class PlayerJoinHandler {
             server.execute(() -> {
                 if (player.connection != null) {
                     player.connection.send(new ClientboundSetTitlesAnimationPacket(10, 70, 20));
-                    player.connection.send(new ClientboundSetSubtitleTextPacket(Component.literal("祝您玩的开心")));
-                    player.connection.send(new ClientboundSetTitleTextPacket(Component.literal("欢迎来到mGod的服务器")));
+                    player.connection.send(new ClientboundSetSubtitleTextPacket(Component.literal(Config.WELCOME_SUBTITLE.get())));
+                    player.connection.send(new ClientboundSetTitleTextPacket(Component.literal(Config.WELCOME_TITLE.get())));
                 }
             });
         }, 3, TimeUnit.SECONDS);
