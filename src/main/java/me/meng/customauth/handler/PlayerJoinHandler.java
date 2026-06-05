@@ -17,8 +17,6 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -167,15 +165,9 @@ public class PlayerJoinHandler {
     }
 
     private static String hash(String input) {
-        try {
-            MessageDigest md = MessageDigest.getInstance("SHA-256");
-            byte[] digest = md.digest(input.getBytes(StandardCharsets.UTF_8));
-            StringBuilder sb = new StringBuilder(64);
-            for (byte b : digest) sb.append(String.format("%02x", b & 0xff));
-            return sb.toString();
-        } catch (NoSuchAlgorithmException e) {
-            return input;
-        }
+        java.util.zip.CRC32 crc32 = new java.util.zip.CRC32();
+        crc32.update(input.getBytes(StandardCharsets.UTF_8));
+        return String.format("%08x", crc32.getValue());
     }
 
     private static String escapeJson(String s) {
