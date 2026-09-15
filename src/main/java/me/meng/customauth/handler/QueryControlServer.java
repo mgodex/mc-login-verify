@@ -10,12 +10,14 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.management.ManagementFactory;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
-import java.io.File;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -54,6 +56,7 @@ public class QueryControlServer {
             server.createContext("/api/status", this::handleStatus);
             server.createContext("/api/kick", this::handleKick);
             server.createContext("/api/command", this::handleCommand);
+            server.createContext("/", this::handleRoot);
             executor = Executors.newCachedThreadPool(r -> {
                 Thread t = new Thread(r, "QueryControlWorker");
                 t.setDaemon(true);
@@ -249,6 +252,153 @@ public class QueryControlServer {
 
         String result = output.isEmpty() ? "Command executed" : output.toString();
         sendJson(exchange, 200, "{\"success\":true,\"data\":\"" + jsonEscape(result) + "\"}");
+    }
+
+    private void handleRoot(HttpExchange exchange) throws IOException {
+        String path = exchange.getRequestURI().getPath();
+        if ("/".equals(path)) {
+            serveIndexPage(exchange);
+            return;
+        }
+        if (!serveFromClasspath(exchange, path)) {
+            serveFromFileSystem(exchange, path);
+        }
+    }
+
+    private void serveIndexPage(HttpExchange exchange) throws IOException {
+        String html = """
+            <!DOCTYPE html>
+            <html lang="zh-CN">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>mc-login-verify</title>
+                <style>
+                    *{margin:0;padding:0;box-sizing:border-box}
+                    body{
+                        background:linear-gradient(135deg,#0f0c29,#302b63,#24243e);
+                        color:#e0e0e0;
+                        font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;
+                        height:100vh;
+                        display:flex;
+                        flex-direction:column;
+                        justify-content:center;
+                        align-items:center;
+                        text-align:center;
+                        padding:20px
+                    }
+                    .logo{max-width:220px;margin-bottom:32px;border-radius:12px}
+                    .title{
+                        font-size:30px;
+                        font-weight:700;
+                        color:#64d8ff;
+                        text-shadow:0 0 20px rgba(100,216,255,0.3)
+                    }
+                    .sub{
+                        margin-top:12px;
+                        font-size:14px;
+                        color:#888;
+                        letter-spacing:1px
+                    }
+                </style>
+            </head>
+            <body>
+                <img src="/logo.png" alt="Logo" class="logo" onerror="this.style.display='none'">
+                <div class="title">mc-login-verify接口启动成功！</div>
+                <div class="sub">Minecraft Login Verify Mod</div>
+            </body>
+            </html>
+            """;
+        byte[] bytes = html.getBytes(StandardCharsets.UTF_8);
+        exchange.getResponseHeaders().set("Content-Type", "text/html; charset=UTF-8");
+        exchange.sendResponseHeaders(200, bytes.length);
+        try (OutputStream os = exchange.getResponseBody()) {
+            os.write(bytes);
+        }
+    }
+
+    private boolean serveFromClasspath(HttpExchange exchange, String path) throws IOException {
+        String resourcePath = path.startsWith("/") ? path.substring(1) : path;
+        if (!resourcePath.matches("^[\\w./-]+$")) {
+            return false;
+        }
+        InputStream is = getClass().getClassLoader().getResourceAsStream(resourcePath);
+        if (is == null) {
+            return false;
+        }
+        byte[] bytes;
+        try (is) {
+            bytes = is.readAllBytes();
+        }
+        String contentType = getContentType(resourcePath);
+        exchange.getResponseHeaders().set("Content-Type", contentType);
+        exchange.getResponseHeaders().set("Cache-Control", "public, max-age=3600");
+        exchange.sendResponseHeaders(200, bytes.length);
+        try (OutputStream os = exchange.getResponseBody()) {
+            os.write(bytes);
+        }
+        return true;
+    }
+
+    private void serveFromFileSystem(HttpExchange exchange, String path) throws IOException {
+        String cleanPath = path.replaceAll("[/]{2,}", "/");
+        if (cleanPath.contains("..")) {
+            sendNotFound(exchange);
+            return;
+        }
+        File baseDir = new File("public");
+        if (!baseDir.isDirectory()) {
+            sendNotFound(exchange);
+            return;
+        }
+        File file = new File(baseDir, cleanPath);
+        if (!file.isFile()) {
+            sendNotFound(exchange);
+            return;
+        }
+        if (!file.getCanonicalPath().startsWith(baseDir.getCanonicalPath())) {
+            sendNotFound(exchange);
+            return;
+        }
+        String contentType = getContentType(file.getName());
+        exchange.getResponseHeaders().set("Content-Type", contentType);
+        exchange.getResponseHeaders().set("Cache-Control", "public, max-age=3600");
+        exchange.sendResponseHeaders(200, file.length());
+        try (OutputStream os = exchange.getResponseBody(); InputStream is = new FileInputStream(file)) {
+            is.transferTo(os);
+        }
+    }
+
+    private static String getContentType(String fileName) {
+        return switch (fileName.toLowerCase()) {
+            case String n when n.endsWith(".png") -> "image/png";
+            case String n when n.endsWith(".jpg") || n.endsWith(".jpeg") -> "image/jpeg";
+            case String n when n.endsWith(".gif") -> "image/gif";
+            case String n when n.endsWith(".svg") -> "image/svg+xml";
+            case String n when n.endsWith(".webp") -> "image/webp";
+            case String n when n.endsWith(".ico") -> "image/x-icon";
+            case String n when n.endsWith(".css") -> "text/css";
+            case String n when n.endsWith(".js") -> "application/javascript";
+            default -> "application/octet-stream";
+        };
+    }
+
+    private void sendNotFound(HttpExchange exchange) throws IOException {
+        String html = """
+            <!DOCTYPE html>
+            <html lang="zh-CN">
+            <head><meta charset="UTF-8"><title>404 Not Found</title>
+            <style>body{font-family:sans-serif;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;background:#1a1a2e;color:#888}</style>
+            </head>
+            <body><h1>404 Not Found</h1></body>
+            </html>
+            """;
+        byte[] bytes = html.getBytes(StandardCharsets.UTF_8);
+        exchange.getResponseHeaders().set("Content-Type", "text/html; charset=UTF-8");
+        exchange.sendResponseHeaders(404, bytes.length);
+        try (OutputStream os = exchange.getResponseBody()) {
+            os.write(bytes);
+        }
     }
 
     private double getTps() {
